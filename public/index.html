@@ -394,6 +394,119 @@
     }
 
     /* Cyberpunk Glitch Signal Lock Overlay */
+    .glitch-scanline {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 50%, rgba(0, 240, 255, 0.15) 51%);
+      background-size: 100% 4px;
+      pointer-events: none;
+    }
+
+    /* Mission Victory Overlay */
+    .victory-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 40%, rgba(0, 230, 118, 0.25) 0%, rgba(8, 10, 22, 0.96) 75%);
+      backdrop-filter: blur(16px);
+      z-index: 9000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s var(--ease-spring);
+    }
+
+    .victory-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .victory-card {
+      background: rgba(12, 16, 32, 0.92);
+      border: 1px solid var(--accent-green);
+      box-shadow: 0 0 45px rgba(0, 230, 118, 0.35);
+      border-radius: 24px;
+      padding: 2.2rem 1.8rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      width: 100%;
+      max-width: 320px;
+      animation: messagePopIn 0.5s var(--ease-spring);
+    }
+
+    .victory-badge {
+      font-size: 3.5rem;
+      line-height: 1;
+      filter: drop-shadow(0 0 20px var(--accent-green));
+      animation: pulseGlow 1.8s infinite ease-in-out;
+    }
+
+    .victory-title {
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: var(--accent-green);
+      letter-spacing: 1px;
+    }
+
+    .victory-subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .victory-stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+      margin-top: 0.4rem;
+    }
+
+    .victory-stat-item {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--shell-border);
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .victory-stat-val {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .victory-stat-lbl {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      margin-top: 2px;
+    }
+
+    .btn-victory-home {
+      background: linear-gradient(135deg, var(--accent-green), #00b0ff);
+      border: none;
+      color: #000;
+      font-weight: 900;
+      padding: 14px 20px;
+      border-radius: 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 0.6rem;
+      box-shadow: 0 4px 20px rgba(0, 230, 118, 0.4);
+      transition: transform 0.2s ease;
+    }
+
+    .btn-victory-home:hover {
+      transform: scale(1.03);
+    }
+
     .glitch-overlay {
       position: absolute;
       inset: 0;
@@ -1179,6 +1292,30 @@
         </div>
       </div>
 
+      <!-- MISSION VICTORY OVERLAY -->
+      <div class="victory-overlay" id="victoryOverlay">
+        <div class="victory-card">
+          <div class="victory-badge">🏆</div>
+          <div class="victory-title" id="victoryTitleText">MISSION ACCOMPLISHED</div>
+          <div class="victory-subtitle" id="victorySubText">Field Agent Alex Escaped Safely!</div>
+
+          <div class="victory-stats-row">
+            <div class="victory-stat-item">
+              <div class="victory-stat-val" id="victoryHpVal">100 HP</div>
+              <div class="victory-stat-lbl" id="victoryHpLbl">AGENT VITALITY</div>
+            </div>
+            <div class="victory-stat-item">
+              <div class="victory-stat-val" style="color:var(--accent-green);" id="victoryStatusVal">CLEARED</div>
+              <div class="victory-stat-lbl" id="victoryStatusLbl">ROOM STATUS</div>
+            </div>
+          </div>
+
+          <button class="btn-victory-home" onclick="dismissVictoryOverlayAndGoHome()" id="btnVictoryHome">
+            🏠 ANA MENÜYE DÖN
+          </button>
+        </div>
+      </div>
+
       <!-- BOOT SEQUENCE OVERLAY -->
       <div class="phone-boot-overlay" id="phoneBootOverlay">
         <div class="boot-logo-area">
@@ -1313,13 +1450,13 @@
           </div>
 
           <div>
-            <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 6px;" id="lblProviderSelect">Yapay Zeka Modeli (AI Engine)</label>
-            <select id="providerSelect" style="width: 100%; background: rgba(0,0,0,0.6); color: #fff; border: 1px solid var(--shell-border); padding: 14px; border-radius: 14px; font-family: inherit; outline: none; font-size: 0.9rem;">
-              <option value="auto">Auto (Smart Auto Strategy)</option>
-              <option value="groq">Groq (OpenAI GPT-OSS-120B)</option>
-              <option value="gemini">Google Gemini (Gemini 3.5 Flash)</option>
+            <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 6px;" id="lblSuggestionsToggle">Eylem Önerileri (Suggested Actions)</label>
+            <select id="suggestionsToggle" onchange="toggleSuggestionsSetting()" style="width: 100%; background: rgba(0,0,0,0.6); color: #fff; border: 1px solid var(--shell-border); padding: 14px; border-radius: 14px; font-family: inherit; outline: none; font-size: 0.9rem;">
+              <option value="on" id="optSuggestionsOn">Açık (Ajan İpuçları)</option>
+              <option value="off" id="optSuggestionsOff">Kapalı (Tamamen Gizli)</option>
             </select>
           </div>
+          <input type="hidden" id="providerSelect" value="auto" />
 
           <button class="btn-tactical" style="background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary)); border: none; color: #fff; padding: 16px; justify-content: center; width: 100%; margin-top: 1rem; border-radius: 14px; font-weight: 800; cursor: pointer;" onclick="createNewRoom()" id="btnNewRoom">
             <span id="btnNewRoomText">Yeni Görevi Başlat</span>
@@ -1499,7 +1636,9 @@
         btnAboutProject: 'System Architecture & How it Works',
         btnReturnWelcome: '← Giriş Ekranına Dön',
         lblThemeSelect: 'Senaryo Seçimi',
-        lblProviderSelect: 'Yapay Zeka Modeli (AI Engine)',
+        lblSuggestionsToggle: 'Eylem Önerileri (Ajan İpuçları)',
+        optSuggestionsOn: 'Açık (İpuçlarını Göster)',
+        optSuggestionsOff: 'Kapalı (Tamamen Gizli)',
         btnNewRoomText: 'Yeni Görevi Başlat',
         placeholderAction: 'Ajana talimat yazın...',
         sendBtnText: 'Gönder',
@@ -1552,7 +1691,9 @@
         btnAboutProject: 'System Architecture & How it Works',
         btnReturnWelcome: '← Back to Welcome',
         lblThemeSelect: 'Scenario Selection',
-        lblProviderSelect: 'AI Engine Model',
+        lblSuggestionsToggle: 'Suggested Actions (Agent Pills)',
+        optSuggestionsOn: 'Enabled (Show Pills)',
+        optSuggestionsOff: 'Disabled (No Pills)',
         btnNewRoomText: 'Start New Mission',
         placeholderAction: 'Type instructions...',
         sendBtnText: 'Send SMS',
@@ -1695,6 +1836,73 @@
     let inactivityTimer = null;
     let inactivityStage = 0;
     let isMissionFailed = false;
+    let isMissionCompleted = false;
+    let showSuggestedActions = true;
+
+    function toggleSuggestionsSetting() {
+      const el = document.getElementById('suggestionsToggle');
+      if (el) {
+        showSuggestedActions = el.value === 'on';
+        if (!showSuggestedActions) {
+          renderSuggestedPills([]);
+        }
+      }
+    }
+
+    function triggerMissionVictory() {
+      if (isMissionCompleted) return;
+      isMissionCompleted = true;
+
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+
+      const isEn = currentLang === 'en';
+      const victoryMsg = isEn
+        ? '🏆 [MISSION ACCOMPLISHED] Field Agent Alex successfully escaped the facility! Signal connection safely terminated.'
+        : '🏆 [GÖREV BAŞARIYLA TAMAMLANDI] Saha Ajanı Alex tesisten başarıyla kaçtı! Sinyal bağlantısı güvenle kapatıldı.';
+
+      appendMessage('agent', victoryMsg);
+      playAudioFx('win');
+
+      const inputEl = document.getElementById('actionInput');
+      const sendBtn = document.getElementById('sendBtn');
+      if (inputEl) {
+        inputEl.disabled = true;
+        inputEl.placeholder = isEn ? '[ MISSION ACCOMPLISHED — ROOM ESCAPED ]' : '[ GÖREV BAŞARILI — ODADAN KAÇILDI ]';
+        inputEl.style.opacity = '0.6';
+      }
+      if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.style.opacity = '0.4';
+        sendBtn.style.pointerEvents = 'none';
+      }
+
+      renderSuggestedPills([]);
+
+      setTimeout(() => {
+        showVictoryOverlay();
+      }, 1200);
+    }
+
+    function showVictoryOverlay() {
+      const overlay = document.getElementById('victoryOverlay');
+      if (!overlay) return;
+      const isEn = currentLang === 'en';
+
+      document.getElementById('victoryTitleText').innerText = isEn ? 'MISSION ACCOMPLISHED' : 'GÖREV BAŞARIYLA TAMAMLANDI';
+      document.getElementById('victorySubText').innerText = isEn ? 'Field Agent Alex Escaped Safely!' : 'Saha Ajanı Alex Güvenle Kaçtı!';
+      document.getElementById('btnVictoryHome').innerText = isEn ? '🏠 RETURN TO MAIN MENU' : '🏠 ANA MENÜYE DÖN';
+      document.getElementById('victoryHpLbl').innerText = isEn ? 'AGENT VITALITY' : 'AJAN SAĞLIĞI';
+      document.getElementById('victoryStatusLbl').innerText = isEn ? 'ROOM STATUS' : 'GÖREV DURUMU';
+      document.getElementById('victoryStatusVal').innerText = isEn ? 'CLEARED' : 'TAMAMLANDI';
+
+      overlay.classList.add('active');
+    }
+
+    function dismissVictoryOverlayAndGoHome() {
+      const overlay = document.getElementById('victoryOverlay');
+      if (overlay) overlay.classList.remove('active');
+      returnToHomeScreen();
+    }
 
     function triggerMissionFailed(reasonEn, reasonTr) {
       if (isMissionFailed) return;
@@ -1901,8 +2109,14 @@
       document.getElementById('btnStartGameText').innerText = t.btnStartGameText;
       document.getElementById('btnReturnWelcome').innerText = t.btnReturnWelcome;
       document.getElementById('lblThemeSelect').innerText = t.lblThemeSelect;
-      if (document.getElementById('lblProviderSelect')) {
-        document.getElementById('lblProviderSelect').innerText = t.lblProviderSelect;
+      if (document.getElementById('lblSuggestionsToggle')) {
+        document.getElementById('lblSuggestionsToggle').innerText = t.lblSuggestionsToggle;
+      }
+      if (document.getElementById('optSuggestionsOn')) {
+        document.getElementById('optSuggestionsOn').innerText = t.optSuggestionsOn;
+      }
+      if (document.getElementById('optSuggestionsOff')) {
+        document.getElementById('optSuggestionsOff').innerText = t.optSuggestionsOff;
       }
       document.getElementById('btnNewRoomText').innerText = t.btnNewRoomText;
       document.getElementById('actionInput').placeholder = t.placeholderAction;
@@ -1975,6 +2189,7 @@
         const room = await res.json();
         currentRoomId = room.id;
         isMissionFailed = false;
+        isMissionCompleted = false;
 
         const inputEl = document.getElementById('actionInput');
         const sendBtn = document.getElementById('sendBtn');
@@ -2061,12 +2276,12 @@
       const actionText = overrideAction || inputEl.value.trim();
       
       if (!actionText) return;
-      if (isMissionFailed) {
+      if (isMissionFailed || isMissionCompleted) {
         showPhoneNotification(
-          currentLang === 'en' ? 'MISSION FAILED' : 'GÖREV BAŞARISIZ',
+          currentLang === 'en' ? 'MISSION ENDED' : 'GÖREV SONLANDI',
           currentLang === 'en'
-            ? 'Telepathic link severed! Start a new mission from Mission Control app.'
-            : 'Telepatik bağlantı koptu! Lütfen Görev Seçici uygulamasından yeni görev başlatın.',
+            ? 'Mission concluded! Start a new mission from Mission Control app.'
+            : 'Görev sonlandı! Lütfen Görev Seçici uygulamasından yeni görev başlatın.',
           'error'
         );
         return;
@@ -2123,6 +2338,8 @@
             'Agent mission parameters compromised.',
             'Ajan görev parametreleri başarısız oldu.'
           );
+        } else if (data.isCompleted || data.is_completed || (data.state && (data.state.is_completed || data.state.isCompleted))) {
+          triggerMissionVictory();
         } else {
           renderSuggestedPills(data.suggestedActions || []);
           resetInactivityTimer();
@@ -2339,6 +2556,8 @@
           'Field Agent vital signs reached 0 HP. Vitality collapsed.',
           'Saha ajanı yaşam sinyalleri 0 HP seviyesine düştü. Yaşam fonksiyonları durdu.'
         );
+      } else if (state.is_completed || state.isCompleted) {
+        triggerMissionVictory();
       }
 
       const matrix = document.getElementById('slotMatrix');
@@ -2508,7 +2727,13 @@
 
     function renderSuggestedPills(actions) {
       const container = document.getElementById('suggestedPills');
+      if (!container) return;
       container.innerHTML = '';
+      if (!showSuggestedActions || isMissionFailed || isMissionCompleted || !actions || actions.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+      container.style.display = 'flex';
       actions.forEach(act => {
         const btn = document.createElement('button');
         btn.className = 'chat-pill-btn';
@@ -2530,7 +2755,14 @@
         osc.connect(gain);
         gain.connect(ctx.destination);
 
-        if (type === 'lock_error') {
+        if (type === 'win') {
+          osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(1046.50, ctx.currentTime + 0.3);
+          osc.type = 'sine';
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.45);
+        } else if (type === 'lock_error') {
           osc.frequency.setValueAtTime(150, ctx.currentTime);
           osc.type = 'sawtooth';
           gain.gain.setValueAtTime(0.15, ctx.currentTime);

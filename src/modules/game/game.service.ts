@@ -31,21 +31,28 @@ export class GameService {
     const room = await this.getRoom(roomId);
 
     if (room.status === 'completed') {
-      throw new BadRequestException('Bu kaçış odasını zaten başarıyla tamamladınız!');
+      const isEn = dto.lang === 'en';
+      throw new BadRequestException(
+        isEn ? 'You have already escaped this room successfully!' : 'Bu kaçış odasını zaten başarıyla tamamladınız!',
+      );
     }
     if (room.status === 'failed') {
-      throw new BadRequestException('Bu kaçış odasında hayatınızı kaybettiniz! Yeni bir oda başlatın.');
+      const isEn = dto.lang === 'en';
+      throw new BadRequestException(
+        isEn ? 'You died in this escape room! Start a new room.' : 'Bu kaçış odasında hayatınızı kaybettiniz! Yeni bir oda başlatın.',
+      );
     }
 
-    const { action } = dto;
+    const { action, lang = 'tr' } = dto;
     const currentState = room.current_state;
 
-    // 1. Invoke AI Engine Strategy (Groq -> Gemini -> Fallback)
+    // 1. Invoke AI Engine Strategy (Groq -> Gemini) with Language preference
     const { result, providerUsed } = await this.aiEngineService.processAction(
       room.theme,
       currentState,
       action,
       room.history,
+      lang,
     );
 
     // 2. Compute State Machine Mutations
@@ -105,6 +112,7 @@ export class GameService {
       soundEffect: result.sound_effect || 'default',
       status: updatedRoom.status,
       providerUsed,
+      lang,
     };
   }
 }

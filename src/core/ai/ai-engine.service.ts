@@ -29,6 +29,7 @@ export class AiEngineService {
     currentState: any,
     playerAction: string,
     history: any[],
+    lang: 'tr' | 'en' = 'tr',
   ): Promise<{ result: AiActionResult; providerUsed: string }> {
     const availableProviders = this.providers.filter((p) => p.isAvailable());
 
@@ -40,8 +41,8 @@ export class AiEngineService {
 
     for (const provider of availableProviders) {
       try {
-        this.logger.log(`Executing AI action using [${provider.providerName}]...`);
-        const result = await provider.executeAction(theme, currentState, playerAction, history);
+        this.logger.log(`Executing AI action (${lang.toUpperCase()}) using [${provider.providerName}]...`);
+        const result = await provider.executeAction(theme, currentState, playerAction, history, lang);
         return { result, providerUsed: provider.providerName };
       } catch (error) {
         this.logger.warn(`Provider [${provider.providerName}] failed: ${error.message}. Trying next available provider...`);

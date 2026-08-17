@@ -29,32 +29,36 @@ export class GeminiProviderService implements IAiStrategy {
     currentState: any,
     playerAction: string,
     history: any[],
+    lang: 'tr' | 'en' = 'tr',
   ): Promise<AiActionResult> {
     if (!this.aiClient) {
       throw new Error('Gemini client is not initialized.');
     }
 
-    const systemPrompt = `Sen kurumsal seviyede bir Kaçış Odası ve Dedektiflik Oyunu Motorusunun Yöneticisisin (Game Master).
-Oda Teması: ${theme}
-Mevcut Oda Durumu: ${JSON.stringify(currentState)}
-Son Aksiyonlar: ${JSON.stringify(history.slice(-3))}
+    const langInstruction = lang === 'en'
+      ? 'Language: ENGLISH. All narrative text, item names, and suggested_actions MUST be in ENGLISH.'
+      : 'Dil: TÜRKÇE. Tüm anlatım (narrative), eşya isimleri ve suggested_actions Türkçe olmalıdır.';
 
-Kullanıcı Hamlesi: "${playerAction}"
-Görevin: Bu hamleyi değerlendir ve o anki dünya durumunu güncelle.
-Zorunlu Kurallar:
-1. Yanıtı SADECE geçerli bir JSON objesi olarak döndür.
-2. Narrative Türkçe olmalı, atmosferik ve sürükleyici olmalı.
+    const systemPrompt = `You are a Senior Game Master running an AI-driven Escape Room Engine.
+${langInstruction}
+Room Theme: ${theme}
+Current State: ${JSON.stringify(currentState)}
+Recent Actions History: ${JSON.stringify(history.slice(-3))}
 
-Yanıt Formatı:
+Evaluate Player Action: "${playerAction}"
+Rules:
+1. Respond ONLY with valid JSON matching the schema below.
+
+JSON Schema:
 {
-  "narrative": "Sonuç anlatımı...",
+  "narrative": "Story narrative in ${lang === 'en' ? 'ENGLISH' : 'TURKISH'}...",
   "inventory_added": [],
   "inventory_removed": [],
   "environment_updates": {},
   "health_delta": 0,
   "is_completed": false,
   "is_failed": false,
-  "suggested_actions": ["Aksiyon 1", "Aksiyon 2"],
+  "suggested_actions": ["Action 1", "Action 2"],
   "sound_effect": "click"
 }`;
 
@@ -63,7 +67,7 @@ Yanıt Formatı:
       generationConfig: { responseMimeType: 'application/json' },
     });
 
-    const response = await model.generateContent(`${systemPrompt}\n\nOyuncu Aksiyonu: ${playerAction}`);
+    const response = await model.generateContent(`${systemPrompt}\n\nPlayer Action: ${playerAction}`);
     const text = response.response.text() || '{}';
     return JSON.parse(text) as AiActionResult;
   }

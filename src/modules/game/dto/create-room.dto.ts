@@ -8,4 +8,8 @@ export class CreateRoomDto {
   @IsString()
   @IsOptional()
   title?: string;
+
+  @IsString()
+  @IsOptional()
+  lang?: 'tr' | 'en';
 }

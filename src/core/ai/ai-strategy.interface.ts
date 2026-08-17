@@ -8,5 +8,6 @@ export interface IAiStrategy {
     currentState: any,
     playerAction: string,
     history: any[],
+    lang?: 'tr' | 'en',
   ): Promise<AiActionResult>;
 }

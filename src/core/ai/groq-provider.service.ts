@@ -29,40 +29,45 @@ export class GroqProviderService implements IAiStrategy {
     currentState: any,
     playerAction: string,
     history: any[],
+    lang: 'tr' | 'en' = 'tr',
   ): Promise<AiActionResult> {
     if (!this.groqClient) {
       throw new Error('Groq client is not initialized.');
     }
 
-    const systemPrompt = `Sen kurumsal seviyede yüksek kaliteli bir Kaçış Odası ve Dedektiflik Oyunu Motorusunun Yöneticisisin (Game Master).
-Oda Teması: ${theme}
-Mevcut Oda Durumu (JSONB): ${JSON.stringify(currentState)}
-Son Geçmiş Aksiyonlar: ${JSON.stringify(history.slice(-3))}
+    const langInstruction = lang === 'en'
+      ? 'Language: ENGLISH. All narrative text, item names, and suggested_actions MUST be in ENGLISH.'
+      : 'Dil: TÜRKÇE. Tüm anlatım (narrative), eşya isimleri ve suggested_actions Türkçe olmalıdır.';
 
-Kullanıcının yaptığı hamleyi ("${playerAction}") değerlendir ve oda durumunu (JSONB) mantıksal bir State Machine gibi güncelle.
-Zorunlu Kurallar:
-1. SADECE aşağıdaki JSON formatında yanıt ver. Başka hiçbir açıklama yazma.
-2. Narrative Türkçe olmalı, atmosferik ve akıcı olmalı.
-3. Sağlık (health_delta) negatif veya pozitif tamsayı olabilir (Örn: -10, 0, +5).
-4. suggested_actions listesinde oyuncuya 2-3 mantıklı sonraki aksiyon öner.
+    const systemPrompt = `You are a Senior Game Master running an AI-driven Escape Room Engine (State Machine).
+${langInstruction}
+Room Theme: ${theme}
+Current State (JSONB): ${JSON.stringify(currentState)}
+Recent Actions History: ${JSON.stringify(history.slice(-3))}
 
-Yanıt Formatı (JSON):
+Evaluate the player's action: "${playerAction}". Mutate the state logically.
+Strict Rules:
+1. Respond ONLY with valid JSON. Do NOT include markdown codeblocks or extra prose.
+2. Health delta can be negative, zero, or positive integer.
+3. Provide 2-3 logical suggested actions for the player in ${lang === 'en' ? 'ENGLISH' : 'TURKISH'}.
+
+JSON Response Schema:
 {
-  "narrative": "Aksiyonun atmosferik sonucu...",
-  "inventory_added": ["anahtar"],
+  "narrative": "Atmospheric description of the action result...",
+  "inventory_added": ["item_name"],
   "inventory_removed": [],
-  "environment_updates": { "door": "unlocked" },
+  "environment_updates": { "object": "state" },
   "health_delta": 0,
   "is_completed": false,
   "is_failed": false,
-  "suggested_actions": ["Aksiyon 1", "Aksiyon 2"],
-  "sound_effect": "unlock"
+  "suggested_actions": ["Action 1", "Action 2"],
+  "sound_effect": "drawer_open"
 }`;
 
     const completion = await this.groqClient.chat.completions.create({
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Oyuncu Aksiyonu: ${playerAction}` },
+        { role: 'user', content: `Player Action: ${playerAction}` },
       ],
       model: 'llama-3.3-70b-versatile',
       response_format: { type: 'json_object' },

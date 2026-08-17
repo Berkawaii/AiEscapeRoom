@@ -59,10 +59,16 @@ Current State (JSONB): ${JSON.stringify(currentState)}
 Recent Actions History: ${JSON.stringify(history.slice(-3))}
 
 Evaluate Operator Instruction: "${playerAction}". Mutate the state logically.
+
 Strict Rules:
 1. Respond ONLY with valid JSON. Do NOT include markdown codeblocks or extra prose.
 2. Health delta can be negative, zero, or positive integer.
 3. Provide 2-3 logical suggested actions for the operator in ${lang === 'en' ? 'ENGLISH' : 'TURKISH'}.
+
+CRITICAL SPOILER PREVENTION & PROGRESSION RULES:
+- NEVER reveal or include future puzzle steps, unrevealed secret codes (e.g. 742), unvisited room/corridor names (e.g. Corridor A/B/C, Sector 4/7), or unobtained items in "suggested_actions" before they are explicitly discovered in the narrative or currentState!
+- "suggested_actions" MUST ONLY contain options based STRICTLY on what Alex can currently see, hold, or interact with at this EXACT step.
+- If Alex just found an item (e.g. a data shard), suggest inspecting it or using it on currently visible objects—do NOT jump ahead to future story codes or future rooms.
 
 JSON Response Schema:
 {

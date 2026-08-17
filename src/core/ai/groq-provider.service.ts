@@ -13,7 +13,7 @@ export class GroqProviderService implements IAiStrategy {
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('GROQ_API_KEY');
-    this.selectedModel = this.configService.get<string>('GROQ_MODEL', 'llama-3.3-70b-versatile');
+    this.selectedModel = this.configService.get<string>('GROQ_MODEL', 'openai/gpt-oss-120b');
 
     if (apiKey && apiKey !== 'your-groq-api-key') {
       this.groqClient = new Groq({ apiKey });

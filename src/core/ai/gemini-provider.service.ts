@@ -13,7 +13,7 @@ export class GeminiProviderService implements IAiStrategy {
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    this.selectedModel = this.configService.get<string>('GEMINI_MODEL', 'gemini-1.5-flash-latest');
+    this.selectedModel = this.configService.get<string>('GEMINI_MODEL', 'gemini-3.5-flash');
 
     if (apiKey && apiKey !== 'your-gemini-api-key') {
       this.aiClient = new GoogleGenerativeAI(apiKey);

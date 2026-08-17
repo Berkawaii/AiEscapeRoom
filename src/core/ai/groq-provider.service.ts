@@ -6,18 +6,24 @@ import { AiActionResult } from './ai-action-result.interface';
 
 @Injectable()
 export class GroqProviderService implements IAiStrategy {
-  readonly providerName = 'Groq (Llama-3.3-70b-versatile)';
   private readonly logger = new Logger(GroqProviderService.name);
   private groqClient: Groq | null = null;
+  private readonly selectedModel: string;
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('GROQ_API_KEY');
+    this.selectedModel = this.configService.get<string>('GROQ_MODEL', 'llama-3.3-70b-versatile');
+
     if (apiKey && apiKey !== 'your-groq-api-key') {
       this.groqClient = new Groq({ apiKey });
-      this.logger.log('Groq Sub-Second LLM Provider initialized.');
+      this.logger.log(`Groq Sub-Second LLM Provider initialized [Model: ${this.selectedModel}].`);
     } else {
       this.logger.warn('Groq API Key not found. Groq provider will be disabled.');
     }
+  }
+
+  get providerName(): string {
+    return `Groq (${this.selectedModel})`;
   }
 
   isAvailable(): boolean {
@@ -69,7 +75,7 @@ JSON Response Schema:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Player Action: ${playerAction}` },
       ],
-      model: 'llama-3.3-70b-versatile',
+      model: this.selectedModel,
       response_format: { type: 'json_object' },
       temperature: 0.7,
       max_tokens: 1000,

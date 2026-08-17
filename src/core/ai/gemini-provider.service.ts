@@ -6,18 +6,24 @@ import { AiActionResult } from './ai-action-result.interface';
 
 @Injectable()
 export class GeminiProviderService implements IAiStrategy {
-  readonly providerName = 'Google Gemini 2.0 Flash';
   private readonly logger = new Logger(GeminiProviderService.name);
   private aiClient: GoogleGenerativeAI | null = null;
+  private readonly selectedModel: string;
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+    this.selectedModel = this.configService.get<string>('GEMINI_MODEL', 'gemini-1.5-flash');
+
     if (apiKey && apiKey !== 'your-gemini-api-key') {
       this.aiClient = new GoogleGenerativeAI(apiKey);
-      this.logger.log('Google Gemini 2.0 Flash Provider initialized.');
+      this.logger.log(`Google Gemini Provider initialized [Model: ${this.selectedModel}].`);
     } else {
       this.logger.warn('Gemini API Key not found. Gemini provider will be disabled.');
     }
+  }
+
+  get providerName(): string {
+    return `Google Gemini (${this.selectedModel})`;
   }
 
   isAvailable(): boolean {
@@ -63,7 +69,7 @@ JSON Schema:
 }`;
 
     const model = this.aiClient.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: this.selectedModel,
       generationConfig: { responseMimeType: 'application/json' },
     });
 

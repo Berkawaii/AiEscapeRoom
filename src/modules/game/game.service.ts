@@ -87,6 +87,8 @@ export class GameService {
       environment: newEnvironment,
       discovered_clues: currentState.discovered_clues || [],
       room_status: newStatus.toUpperCase(),
+      is_completed: newStatus === 'completed',
+      is_failed: newStatus === 'failed',
     };
 
     const historyItem = {
@@ -113,6 +115,10 @@ export class GameService {
       suggestedActions: result.suggested_actions || [],
       soundEffect: result.sound_effect || 'default',
       status: updatedRoom.status,
+      isCompleted: newStatus === 'completed',
+      isFailed: newStatus === 'failed',
+      is_completed: newStatus === 'completed',
+      is_failed: newStatus === 'failed',
       providerUsed,
       lang,
     };

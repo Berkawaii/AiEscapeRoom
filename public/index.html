@@ -1950,14 +1950,14 @@
 
     function resetInactivityTimer() {
       if (inactivityTimer) clearTimeout(inactivityTimer);
-      if (isMissionFailed) return;
+      if (isMissionFailed || isMissionCompleted) return;
       inactivityStage = 0;
       scheduleNextInactivityStage();
     }
 
     function scheduleNextInactivityStage() {
       if (inactivityTimer) clearTimeout(inactivityTimer);
-      if (!currentRoomId || isMissionFailed) return;
+      if (!currentRoomId || isMissionFailed || isMissionCompleted) return;
 
       let delayMs = 35000;
       if (inactivityStage === 1) delayMs = 25000;
@@ -1970,7 +1970,7 @@
     }
 
     function handleInactivityNudge() {
-      if (!currentRoomId || isMissionFailed) return;
+      if (!currentRoomId || isMissionFailed || isMissionCompleted) return;
 
       const isEn = currentLang === 'en';
       inactivityStage++;

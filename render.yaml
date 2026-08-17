@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: ai-escape-room-engine
+    env: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: PRIMARY_AI_PROVIDER
+        value: groq
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false

@@ -3,22 +3,82 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🚪 AI Escape Room Engine — High-Concurrency State Machine</title>
+  <title>🚪 AI Escape Room Engine — Dynamic World State Machine</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Fira+Code:wght@400;600&family=Orbitron:wght@600;800;900&family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
   <style>
+    /* Theme Variables & Dynamic World Palettes */
     :root {
-      --bg-color: #080911;
-      --card-bg: rgba(18, 20, 36, 0.75);
-      --card-border: rgba(255, 255, 255, 0.08);
+      --bg-color: #070814;
+      --card-bg: rgba(15, 17, 32, 0.75);
+      --card-border: rgba(0, 240, 255, 0.15);
+      --card-glow: rgba(0, 240, 255, 0.08);
       --accent-cyan: #00f0ff;
       --accent-purple: #7000ff;
+      --accent-primary: #00f0ff;
+      --accent-secondary: #7000ff;
       --accent-green: #00ff88;
       --accent-red: #ff0055;
       --accent-gold: #ffb700;
       --text-main: #f0f3ff;
       --text-muted: #8a90b4;
+      --font-main: 'Outfit', sans-serif;
+      --gradient-bg-1: rgba(112, 0, 255, 0.2);
+      --gradient-bg-2: rgba(0, 240, 255, 0.16);
+      --header-bg: rgba(8, 9, 20, 0.85);
+    }
+
+    /* Cyberpunk Escape Theme */
+    body.theme-cyberpunk_escape {
+      --bg-color: #050611;
+      --card-bg: rgba(14, 16, 32, 0.78);
+      --card-border: rgba(0, 240, 255, 0.25);
+      --card-glow: rgba(0, 240, 255, 0.12);
+      --accent-primary: #00f0ff;
+      --accent-secondary: #ff007f;
+      --font-main: 'Outfit', sans-serif;
+      --gradient-bg-1: rgba(255, 0, 127, 0.22);
+      --gradient-bg-2: rgba(0, 240, 255, 0.2);
+    }
+
+    /* Haunted Mansion Theme (Gothic Noir) */
+    body.theme-haunted_mansion {
+      --bg-color: #0a0508;
+      --card-bg: rgba(22, 10, 16, 0.82);
+      --card-border: rgba(255, 23, 68, 0.28);
+      --card-glow: rgba(255, 23, 68, 0.12);
+      --accent-primary: #ff1744;
+      --accent-secondary: #ffab00;
+      --font-main: 'Cinzel', serif;
+      --gradient-bg-1: rgba(255, 23, 68, 0.25);
+      --gradient-bg-2: rgba(136, 14, 79, 0.3);
+    }
+
+    /* Sci-Fi Base Theme (Deep Alien Nebula) */
+    body.theme-scifi_spaceship {
+      --bg-color: #020b14;
+      --card-bg: rgba(8, 20, 36, 0.8);
+      --card-border: rgba(0, 230, 118, 0.28);
+      --card-glow: rgba(0, 230, 118, 0.12);
+      --accent-primary: #00e676;
+      --accent-secondary: #00b0ff;
+      --font-main: 'Orbitron', sans-serif;
+      --gradient-bg-1: rgba(0, 176, 255, 0.25);
+      --gradient-bg-2: rgba(0, 230, 118, 0.22);
+    }
+
+    /* Medieval Dungeon Theme (Dark Torch Fantasy) */
+    body.theme-medieval_dungeon {
+      --bg-color: #0c0804;
+      --card-bg: rgba(24, 16, 8, 0.82);
+      --card-border: rgba(255, 109, 0, 0.3);
+      --card-glow: rgba(255, 109, 0, 0.12);
+      --accent-primary: #ff6d00;
+      --accent-secondary: #ffd600;
+      --font-main: 'Cinzel', serif;
+      --gradient-bg-1: rgba(255, 109, 0, 0.28);
+      --gradient-bg-2: rgba(191, 54, 12, 0.25);
     }
 
     * {
@@ -28,23 +88,24 @@
     }
 
     body {
-      font-family: 'Outfit', sans-serif;
+      font-family: var(--font-main);
       background: var(--bg-color);
       color: var(--text-main);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       background-image: 
-        radial-gradient(circle at 15% 15%, rgba(112, 0, 255, 0.18) 0%, transparent 40%),
-        radial-gradient(circle at 85% 85%, rgba(0, 240, 255, 0.14) 0%, transparent 40%);
+        radial-gradient(circle at 15% 15%, var(--gradient-bg-1) 0%, transparent 45%),
+        radial-gradient(circle at 85% 85%, var(--gradient-bg-2) 0%, transparent 45%);
       background-attachment: fixed;
       overflow-x: hidden;
+      transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s ease;
     }
 
     header {
       padding: 1.2rem 2rem;
       border-bottom: 1px solid var(--card-border);
-      background: rgba(8, 9, 17, 0.85);
+      background: rgba(8, 9, 20, 0.85);
       backdrop-filter: blur(16px);
       display: flex;
       justify-content: space-between;
@@ -52,25 +113,27 @@
       position: sticky;
       top: 0;
       z-index: 100;
+      transition: border-color 0.6s ease;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
     }
 
     .brand-icon {
-      font-size: 1.8rem;
-      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      font-size: 2rem;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       font-weight: 900;
+      transition: all 0.6s ease;
     }
 
     .brand h1 {
-      font-size: 1.3rem;
-      font-weight: 700;
+      font-size: 1.35rem;
+      font-weight: 800;
       letter-spacing: -0.5px;
     }
 
@@ -90,19 +153,20 @@
       font-weight: 600;
       padding: 6px 14px;
       border-radius: 20px;
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.04);
       border: 1px solid var(--card-border);
       color: var(--text-muted);
       display: flex;
       align-items: center;
       gap: 6px;
+      transition: border-color 0.6s ease;
     }
 
     .badge.active {
-      color: var(--accent-cyan);
-      border-color: rgba(0, 240, 255, 0.4);
-      background: rgba(0, 240, 255, 0.08);
-      box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+      color: var(--accent-primary);
+      border-color: var(--accent-primary);
+      background: rgba(0, 0, 0, 0.3);
+      box-shadow: 0 0 12px var(--card-glow);
     }
 
     .lang-btn, .info-btn {
@@ -122,14 +186,14 @@
     }
 
     .lang-btn:hover, .info-btn:hover {
-      background: rgba(0, 240, 255, 0.15);
-      border-color: var(--accent-cyan);
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--accent-primary);
       color: #fff;
       transform: translateY(-1px);
     }
 
     .container {
-      max-width: 1400px;
+      max-width: 1440px;
       margin: 0 auto;
       padding: 2rem;
       width: 100%;
@@ -145,7 +209,7 @@
       }
     }
 
-    /* Sidebar HUD */
+    /* Sidebar HUD Cards */
     .sidebar {
       display: flex;
       flex-direction: column;
@@ -155,12 +219,13 @@
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 16px;
+      border-radius: 18px;
       padding: 1.5rem;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 20px var(--card-glow);
       position: relative;
       overflow: hidden;
+      transition: border-color 0.6s ease, box-shadow 0.6s ease, background 0.6s ease;
     }
 
     .card::before {
@@ -169,8 +234,9 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
+      transition: background 0.6s ease;
     }
 
     .card-title {
@@ -223,9 +289,9 @@
     }
 
     .inventory-item {
-      background: rgba(0, 240, 255, 0.08);
-      border: 1px solid rgba(0, 240, 255, 0.25);
-      color: var(--accent-cyan);
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--accent-primary);
+      color: var(--accent-primary);
       font-size: 0.8rem;
       padding: 8px 14px;
       border-radius: 10px;
@@ -251,7 +317,7 @@
 
     .clue-item {
       background: rgba(255, 183, 0, 0.08);
-      border: 1px solid rgba(255, 183, 0, 0.25);
+      border: 1px solid rgba(255, 183, 0, 0.3);
       color: var(--accent-gold);
       font-size: 0.8rem;
       padding: 6px 12px;
@@ -263,10 +329,10 @@
     .env-tree {
       font-family: 'Fira Code', monospace;
       font-size: 0.8rem;
-      background: rgba(0, 0, 0, 0.45);
+      background: rgba(0, 0, 0, 0.5);
       padding: 1rem;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
       color: #79c0ff;
       max-height: 180px;
       overflow-y: auto;
@@ -282,13 +348,14 @@
     .terminal-window {
       background: rgba(10, 12, 24, 0.92);
       border: 1px solid var(--card-border);
-      border-radius: 16px;
+      border-radius: 18px;
       flex: 1;
       min-height: 520px;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 30px var(--card-glow);
       overflow: hidden;
+      transition: border-color 0.6s ease, box-shadow 0.6s ease;
     }
 
     .terminal-header {
@@ -298,6 +365,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      transition: border-color 0.6s ease;
     }
 
     .terminal-dots {
@@ -321,7 +389,7 @@
       display: flex;
       flex-direction: column;
       gap: 1.2rem;
-      font-family: 'Outfit', sans-serif;
+      font-family: inherit;
       scroll-behavior: smooth;
     }
 
@@ -334,26 +402,27 @@
 
     .log-action {
       align-self: flex-end;
-      background: linear-gradient(135deg, rgba(112, 0, 255, 0.35), rgba(0, 240, 255, 0.25));
-      border: 1px solid rgba(0, 240, 255, 0.3);
+      background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
+      border: 1px solid var(--accent-primary);
       padding: 12px 18px;
       border-radius: 14px 14px 2px 14px;
       font-weight: 600;
       color: #ffffff;
       max-width: 80%;
       font-size: 0.95rem;
+      box-shadow: 0 4px 15px var(--card-glow);
     }
 
     .log-narrative {
       align-self: flex-start;
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid var(--card-border);
-      padding: 16px 20px;
+      padding: 18px 22px;
       border-radius: 2px 14px 14px 14px;
-      line-height: 1.65;
+      line-height: 1.7;
       color: #e2e8f0;
       max-width: 92%;
-      font-size: 0.95rem;
+      font-size: 0.98rem;
       position: relative;
     }
 
@@ -367,7 +436,7 @@
     }
 
     .log-provider {
-      color: var(--accent-cyan);
+      color: var(--accent-primary);
     }
 
     .suggested-pills {
@@ -390,11 +459,11 @@
     }
 
     .pill-btn:hover {
-      background: rgba(0, 240, 255, 0.15);
-      border-color: var(--accent-cyan);
+      background: rgba(0, 0, 0, 0.4);
+      border-color: var(--accent-primary);
       color: #fff;
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 240, 255, 0.2);
+      box-shadow: 0 4px 14px var(--card-glow);
     }
 
     /* Input Controls */
@@ -408,23 +477,23 @@
       flex: 1;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 14px 20px;
       color: var(--text-main);
       font-family: inherit;
       font-size: 1rem;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.3s, box-shadow 0.3s;
     }
 
     .action-input:focus {
-      border-color: var(--accent-cyan);
-      box-shadow: 0 0 18px rgba(0, 240, 255, 0.25);
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 20px var(--card-glow);
     }
 
     .btn {
       padding: 14px 24px;
-      border-radius: 12px;
+      border-radius: 14px;
       border: none;
       font-weight: 700;
       font-family: inherit;
@@ -437,14 +506,14 @@
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
       color: #fff;
-      box-shadow: 0 4px 15px rgba(112, 0, 255, 0.4);
+      box-shadow: 0 4px 15px var(--card-glow);
     }
 
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 240, 255, 0.5);
+      box-shadow: 0 6px 22px var(--card-glow);
     }
 
     .btn-danger {
@@ -456,7 +525,7 @@
     .btn-danger:hover {
       background: var(--accent-red);
       color: #fff;
-      box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+      box-shadow: 0 0 18px rgba(255, 0, 85, 0.4);
     }
 
     /* Alert Notice for Race Condition */
@@ -465,7 +534,7 @@
       border: 1px solid var(--accent-red);
       color: #ff99b3;
       padding: 14px 18px;
-      border-radius: 10px;
+      border-radius: 12px;
       font-size: 0.9rem;
       display: none;
       animation: shake 0.4s ease;
@@ -476,7 +545,7 @@
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(4, 5, 12, 0.85);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
       display: none;
       justify-content: center;
       align-items: center;
@@ -486,14 +555,14 @@
 
     .modal-box {
       background: rgba(18, 20, 36, 0.95);
-      border: 1px solid var(--accent-cyan);
+      border: 1px solid var(--accent-primary);
       border-radius: 20px;
       max-width: 800px;
       width: 100%;
       max-height: 85vh;
       overflow-y: auto;
-      padding: 2rem;
-      box-shadow: 0 20px 50px rgba(0, 240, 255, 0.2);
+      padding: 2.2rem;
+      box-shadow: 0 20px 50px var(--card-glow);
       position: relative;
     }
 
@@ -504,17 +573,17 @@
       background: rgba(255,255,255,0.1);
       border: none;
       color: #fff;
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       font-weight: 700;
       cursor: pointer;
     }
 
     .modal-h2 {
-      font-size: 1.5rem;
+      font-size: 1.6rem;
       margin-bottom: 1rem;
-      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -535,12 +604,12 @@
     .tech-card {
       background: rgba(0,0,0,0.4);
       border: 1px solid var(--card-border);
-      padding: 1rem;
+      padding: 1.2rem;
       border-radius: 12px;
     }
 
     .tech-card h4 {
-      color: var(--accent-cyan);
+      color: var(--accent-primary);
       margin-bottom: 0.4rem;
     }
 
@@ -549,11 +618,11 @@
     @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
   </style>
 </head>
-<body>
+<body class="theme-cyberpunk_escape">
 
   <header>
     <div class="brand">
-      <span class="brand-icon">🛸</span>
+      <span class="brand-icon" id="brandIcon">🛸</span>
       <div>
         <h1>AI Escape Room Engine</h1>
         <p style="font-size: 0.75rem; color: var(--text-muted);" id="subTitle">High-Concurrency Distributed Lock & State Machine</p>
@@ -581,7 +650,7 @@
       <!-- New Game Card -->
       <div class="card">
         <div class="card-title" id="lblThemeSelect">Senaryo Seçimi</div>
-        <select id="themeSelect" style="width: 100%; background: rgba(0,0,0,0.4); color: #fff; border: 1px solid var(--card-border); padding: 12px; border-radius: 8px; font-family: inherit; margin-bottom: 12px; outline: none;">
+        <select id="themeSelect" onchange="handleThemeChange()" style="width: 100%; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid var(--card-border); padding: 12px; border-radius: 10px; font-family: inherit; margin-bottom: 12px; outline: none;">
           <option value="cyberpunk_escape">🌆 Siberpunk Kaçış (Cyberpunk Escape)</option>
           <option value="haunted_mansion">🏰 Lanetli Malikane (Haunted Detective)</option>
           <option value="scifi_spaceship">🚀 Terk Edilmiş Uzay Üssü (Sci-Fi Base)</option>
@@ -629,7 +698,7 @@
       </div>
 
       <!-- Race Condition Tester -->
-      <div class="card" style="border-color: rgba(255, 0, 85, 0.3);">
+      <div class="card" style="border-color: rgba(255, 0, 85, 0.4);">
         <div class="card-title" style="color: var(--accent-red);" id="lblConcurrencyTitle">🔥 Concurrency Benchmark</div>
         <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;" id="lblConcurrencyDesc">
           Aynı anda 5 eşzamanlı istek atarak <b>Redis Distributed Lock (HTTP 429)</b> kilit mekanizmasını canlı test edin.
@@ -691,12 +760,12 @@
         <b>AI Escape Room Engine</b>, geleneksel statik hikaye ağaçları yerine Büyük Dil Modellerini (LLM) esnek bir **State Machine (Durum Makinesi)** olarak kullanan metin ve görsel tabanlı asenkron bir kaçış odası motorudur.
       </p>
 
-      <h3 style="color: var(--accent-cyan); margin-top: 1.5rem; margin-bottom: 0.5rem;" id="modalH3Why">❓ Neden Yapıldı? (Proje Vizyonu)</h3>
+      <h3 style="color: var(--accent-primary); margin-top: 1.5rem; margin-bottom: 0.5rem;" id="modalH3Why">❓ Neden Yapıldı? (Proje Vizyonu)</h3>
       <p class="modal-p" id="modalDesc2">
         Kaçış odası ve dedektiflik oyunlarında oyuncuların ardışık veya spam hamleler yapması veritabanında **Race Condition (Yarış Durumu)** oluşturur. Bu proje, kurumsal düzeyde **0$ Altyapı Bütçesi** ile yüksek trafikli, kilit mekanizmalı (Distributed Lock) ve sıfır gecikmeli bir backend mimarisi inşa etmek amacıyla geliştirilmiştir.
       </p>
 
-      <h3 style="color: var(--accent-purple); margin-top: 1.5rem; margin-bottom: 0.5rem;" id="modalH3Tech">🛠️ Teknik Mimari & Teknolojiler</h3>
+      <h3 style="color: var(--accent-secondary); margin-top: 1.5rem; margin-bottom: 0.5rem;" id="modalH3Tech">🛠️ Teknik Mimari & Teknolojiler</h3>
       <div class="tech-grid">
         <div class="tech-card">
           <h4>🔒 Redis Distributed Lock</h4>
@@ -713,7 +782,7 @@
         <div class="tech-card">
           <h4>🤖 Dual-LLM Strategy Engine</h4>
           <p style="font-size: 0.85rem; color: var(--text-muted);" id="modalTechAi">
-            Sub-second hızıyla Groq (Llama-3.3-70b) ve Google Gemini 2.0 Flash modellerini otomatik fallback zinciyle çalıştırır.
+            Sub-second hızıyla Groq (Llama-3.3-70b) ve Google Gemini 2.0 Flash modellerini otomatik fallback zinciriyle çalıştırır.
           </p>
         </div>
         <div class="tech-card">
@@ -729,6 +798,13 @@
   <script>
     let currentRoomId = null;
     let currentLang = 'tr';
+
+    const themeIcons = {
+      cyberpunk_escape: '🛸',
+      haunted_mansion: '🏰',
+      scifi_spaceship: '🚀',
+      medieval_dungeon: '🛡️'
+    };
 
     const i18n = {
       tr: {
@@ -788,6 +864,12 @@
         modalTechNest: 'Strictly SOLID-compliant, modular, Interceptor & Decorator based enterprise TypeScript backend.'
       }
     };
+
+    function handleThemeChange() {
+      const selectedTheme = document.getElementById('themeSelect').value;
+      document.body.className = `theme-${selectedTheme}`;
+      document.getElementById('brandIcon').innerText = themeIcons[selectedTheme] || '🛸';
+    }
 
     function toggleLanguage() {
       currentLang = currentLang === 'tr' ? 'en' : 'tr';
@@ -993,7 +1075,7 @@
           </div>
         `;
       } else {
-        entry.innerHTML = `<div class="log-narrative" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">${text}</div>`;
+        entry.innerHTML = `<div class="log-narrative" style="border-color: var(--accent-primary); color: var(--accent-primary);">${text}</div>`;
       }
 
       logs.appendChild(entry);

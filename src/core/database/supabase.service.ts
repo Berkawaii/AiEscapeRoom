@@ -2,6 +2,7 @@ import { Injectable, Logger, ServiceUnavailableException, InternalServerErrorExc
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+import { SCENARIO_CONFIGS } from '../ai/scenario-config';
 
 export interface RoomRecord {
   id: string;
@@ -56,20 +57,13 @@ export class SupabaseService {
     return this.supabaseClient;
   }
 
-  /**
-   * PostgreSQL Native Advisory Lock (0$ Extra Service required - Uses Supabase Postgres itself!)
-   */
   async acquireAdvisoryLock(lockKey: string): Promise<string | null> {
     const client = this.ensureClient();
     try {
-      // Use RPC or raw query for pg_try_advisory_lock
       const { data, error } = await client.rpc('acquire_room_lock', { lock_key: lockKey });
-      
       if (error) {
-        // Fallback to table row level status lock if RPC not installed
         return this.acquireRowLockFallback(lockKey);
       }
-      
       return data === true ? uuidv4() : null;
     } catch (e) {
       return this.acquireRowLockFallback(lockKey);
@@ -77,29 +71,19 @@ export class SupabaseService {
   }
 
   private async acquireRowLockFallback(lockKey: string): Promise<string | null> {
-    // Basic atomic lock token generated
     return uuidv4();
   }
 
   async createRoom(theme: string, title?: string, userId?: string): Promise<RoomRecord> {
     const client = this.ensureClient();
+    const config = SCENARIO_CONFIGS[theme] || SCENARIO_CONFIGS['cyberpunk_escape'];
 
     const newRoom: RoomRecord = {
       id: uuidv4(),
       user_id: userId && userId !== 'anonymous' ? userId : null,
       theme: theme || 'cyberpunk_escape',
-      title: title || `${theme.replace('_', ' ').toUpperCase()} ESCAPE ROOM`,
-      current_state: {
-        health: 100,
-        inventory: [],
-        environment: {
-          door: 'locked',
-          lights: 'flickering',
-          room_temperature: 'cold',
-        },
-        discovered_clues: [],
-        room_status: 'LOCKED',
-      },
+      title: title || config.titleTr,
+      current_state: JSON.parse(JSON.stringify(config.initialState)),
       history: [],
       status: 'active',
       created_at: new Date().toISOString(),

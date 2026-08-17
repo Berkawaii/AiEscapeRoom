@@ -43,16 +43,17 @@ export class GameService {
       );
     }
 
-    const { action, lang = 'tr' } = dto;
+    const { action, lang = 'tr', provider } = dto;
     const currentState = room.current_state;
 
-    // 1. Invoke AI Engine Strategy (Groq -> Gemini) with Language preference
+    // 1. Invoke AI Engine Strategy (Groq -> Gemini) with Language & Provider preference
     const { result, providerUsed } = await this.aiEngineService.processAction(
       room.theme,
       currentState,
       action,
       room.history,
       lang,
+      provider,
     );
 
     // 2. Compute State Machine Mutations
@@ -107,6 +108,7 @@ export class GameService {
       roomId: updatedRoom.id,
       action,
       narrative: result.narrative,
+      imageUrl: result.image_url,
       state: updatedRoom.current_state,
       suggestedActions: result.suggested_actions || [],
       soundEffect: result.sound_effect || 'default',

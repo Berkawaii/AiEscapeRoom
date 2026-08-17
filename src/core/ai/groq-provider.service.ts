@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
 import { IAiStrategy } from './ai-strategy.interface';
 import { AiActionResult } from './ai-action-result.interface';
+import { SCENARIO_CONFIGS } from './scenario-config';
 
 @Injectable()
 export class GroqProviderService implements IAiStrategy {
@@ -41,25 +42,31 @@ export class GroqProviderService implements IAiStrategy {
       throw new Error('Groq client is not initialized.');
     }
 
+    const config = SCENARIO_CONFIGS[theme] || SCENARIO_CONFIGS['cyberpunk_escape'];
+
     const langInstruction = lang === 'en'
       ? 'Language: ENGLISH. All narrative text, item names, and suggested_actions MUST be in ENGLISH.'
       : 'Dil: TÜRKÇE. Tüm anlatım (narrative), eşya isimleri ve suggested_actions Türkçe olmalıdır.';
 
-    const systemPrompt = `You are a Senior Game Master running an AI-driven Escape Room Engine (State Machine).
+    const scenarioInstructions = lang === 'en' ? config.promptInstructionsEn : config.promptInstructionsTr;
+
+    const systemPrompt = `You are an AI Escape Room Engine executing a dynamic State Machine.
 ${langInstruction}
-Room Theme: ${theme}
+
+${scenarioInstructions}
+
 Current State (JSONB): ${JSON.stringify(currentState)}
 Recent Actions History: ${JSON.stringify(history.slice(-3))}
 
-Evaluate the player's action: "${playerAction}". Mutate the state logically.
+Evaluate Operator Instruction: "${playerAction}". Mutate the state logically.
 Strict Rules:
 1. Respond ONLY with valid JSON. Do NOT include markdown codeblocks or extra prose.
 2. Health delta can be negative, zero, or positive integer.
-3. Provide 2-3 logical suggested actions for the player in ${lang === 'en' ? 'ENGLISH' : 'TURKISH'}.
+3. Provide 2-3 logical suggested actions for the operator in ${lang === 'en' ? 'ENGLISH' : 'TURKISH'}.
 
 JSON Response Schema:
 {
-  "narrative": "Atmospheric description of the action result...",
+  "narrative": "Urgent SMS message from Alex describing the action result in first-person...",
   "inventory_added": ["item_name"],
   "inventory_removed": [],
   "environment_updates": { "object": "state" },
@@ -73,7 +80,7 @@ JSON Response Schema:
     const completion = await this.groqClient.chat.completions.create({
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Player Action: ${playerAction}` },
+        { role: 'user', content: `Operator Instruction: ${playerAction}` },
       ],
       model: this.selectedModel,
       response_format: { type: 'json_object' },

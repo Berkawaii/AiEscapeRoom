@@ -8,4 +8,8 @@ export class PlayerActionDto {
   @IsString()
   @IsOptional()
   lang?: 'tr' | 'en';
+
+  @IsString()
+  @IsOptional()
+  provider?: 'groq' | 'gemini' | 'auto';
 }

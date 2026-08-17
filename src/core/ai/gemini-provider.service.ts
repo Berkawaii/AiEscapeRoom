@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { IAiStrategy } from './ai-strategy.interface';
 import { AiActionResult } from './ai-action-result.interface';
+import { SCENARIO_CONFIGS } from './scenario-config';
 
 @Injectable()
 export class GeminiProviderService implements IAiStrategy {
@@ -12,7 +13,7 @@ export class GeminiProviderService implements IAiStrategy {
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    this.selectedModel = this.configService.get<string>('GEMINI_MODEL', 'gemini-1.5-flash');
+    this.selectedModel = this.configService.get<string>('GEMINI_MODEL', 'gemini-1.5-flash-latest');
 
     if (apiKey && apiKey !== 'your-gemini-api-key') {
       this.aiClient = new GoogleGenerativeAI(apiKey);
@@ -41,23 +42,29 @@ export class GeminiProviderService implements IAiStrategy {
       throw new Error('Gemini client is not initialized.');
     }
 
+    const config = SCENARIO_CONFIGS[theme] || SCENARIO_CONFIGS['cyberpunk_escape'];
+
     const langInstruction = lang === 'en'
       ? 'Language: ENGLISH. All narrative text, item names, and suggested_actions MUST be in ENGLISH.'
       : 'Dil: TÜRKÇE. Tüm anlatım (narrative), eşya isimleri ve suggested_actions Türkçe olmalıdır.';
 
-    const systemPrompt = `You are a Senior Game Master running an AI-driven Escape Room Engine.
+    const scenarioInstructions = lang === 'en' ? config.promptInstructionsEn : config.promptInstructionsTr;
+
+    const systemPrompt = `You are an AI Escape Room Engine executing a dynamic State Machine.
 ${langInstruction}
-Room Theme: ${theme}
+
+${scenarioInstructions}
+
 Current State: ${JSON.stringify(currentState)}
 Recent Actions History: ${JSON.stringify(history.slice(-3))}
 
-Evaluate Player Action: "${playerAction}"
+Evaluate Operator Instruction: "${playerAction}"
 Rules:
 1. Respond ONLY with valid JSON matching the schema below.
 
 JSON Schema:
 {
-  "narrative": "Story narrative in ${lang === 'en' ? 'ENGLISH' : 'TURKISH'}...",
+  "narrative": "Urgent SMS message from Alex describing the action result in first-person...",
   "inventory_added": [],
   "inventory_removed": [],
   "environment_updates": {},
@@ -73,7 +80,7 @@ JSON Schema:
       generationConfig: { responseMimeType: 'application/json' },
     });
 
-    const response = await model.generateContent(`${systemPrompt}\n\nPlayer Action: ${playerAction}`);
+    const response = await model.generateContent(`${systemPrompt}\n\nOperator Instruction: ${playerAction}`);
     const text = response.response.text() || '{}';
     return JSON.parse(text) as AiActionResult;
   }

@@ -8,4 +8,5 @@ export interface AiActionResult {
   is_failed?: boolean;
   suggested_actions?: string[];
   sound_effect?: string;
+  image_url?: string;
 }

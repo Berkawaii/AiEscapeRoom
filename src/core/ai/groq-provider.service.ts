@@ -77,18 +77,36 @@ JSON Response Schema:
   "sound_effect": "drawer_open"
 }`;
 
-    const completion = await this.groqClient.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Operator Instruction: ${playerAction}` },
-      ],
-      model: this.selectedModel,
-      response_format: { type: 'json_object' },
-      temperature: 0.7,
-      max_tokens: 1000,
-    });
+    try {
+      const completion = await this.groqClient.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Operator Instruction: ${playerAction}` },
+        ],
+        model: this.selectedModel,
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
 
-    const responseText = completion.choices[0]?.message?.content || '{}';
-    return JSON.parse(responseText) as AiActionResult;
+      const responseText = completion.choices[0]?.message?.content || '{}';
+      return JSON.parse(responseText) as AiActionResult;
+    } catch (err) {
+      this.logger.warn(`Groq model [${this.selectedModel}] failed: ${err.message}. Retrying with active model openai/gpt-oss-120b...`);
+      
+      const fallbackCompletion = await this.groqClient.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Operator Instruction: ${playerAction}` },
+        ],
+        model: 'openai/gpt-oss-120b',
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
+
+      const responseText = fallbackCompletion.choices[0]?.message?.content || '{}';
+      return JSON.parse(responseText) as AiActionResult;
+    }
   }
 }

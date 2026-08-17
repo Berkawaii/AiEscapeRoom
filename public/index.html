@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🚪 AI Escape Room Engine — High-Concurrency State Machine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #080911;
+      --card-bg: rgba(18, 20, 36, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-cyan: #00f0ff;
+      --accent-purple: #7000ff;
+      --accent-green: #00ff88;
+      --accent-red: #ff0055;
+      --accent-gold: #ffb700;
+      --text-main: #f0f3ff;
+      --text-muted: #8a90b4;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(112, 0, 255, 0.18) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(0, 240, 255, 0.14) 0%, transparent 40%);
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+
+    header {
+      padding: 1.2rem 2rem;
+      border-bottom: 1px solid var(--card-border);
+      background: rgba(8, 9, 17, 0.85);
+      backdrop-filter: blur(16px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      font-size: 1.8rem;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 900;
+    }
+
+    .brand h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .badge-bar {
+      display: flex;
+      gap: 10px;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge.active {
+      color: var(--accent-cyan);
+      border-color: rgba(0, 240, 255, 0.4);
+      background: rgba(0, 240, 255, 0.08);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+      width: 100%;
+      flex: 1;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 1024px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Sidebar HUD */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Health Bar */
+    .health-container {
+      margin-top: 0.5rem;
+    }
+
+    .health-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .health-bar-bg {
+      height: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .health-bar-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--accent-red), var(--accent-green));
+      border-radius: 6px;
+      transition: width 0.5s ease-out;
+    }
+
+    /* Inventory Grid */
+    .inventory-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 50px;
+    }
+
+    .inventory-item {
+      background: rgba(0, 240, 255, 0.08);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      color: var(--accent-cyan);
+      font-size: 0.8rem;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .empty-inventory {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+
+    /* Clue Board */
+    .clue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .clue-item {
+      background: rgba(255, 183, 0, 0.08);
+      border: 1px solid rgba(255, 183, 0, 0.25);
+      color: var(--accent-gold);
+      font-size: 0.8rem;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+
+    /* Environment JSON state viewer */
+    .env-tree {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      background: rgba(0, 0, 0, 0.45);
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: #79c0ff;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    /* Main Console Area */
+    .console-area {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .terminal-window {
+      background: rgba(10, 12, 24, 0.92);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      flex: 1;
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+
+    .terminal-header {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 14px 22px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot.red { background: #ff5f56; }
+    .dot.yellow { background: #ffbd2e; }
+    .dot.green { background: #27c93f; }
+
+    .terminal-logs {
+      padding: 1.8rem;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      font-family: 'Outfit', sans-serif;
+      scroll-behavior: smooth;
+    }
+
+    .log-entry {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .log-action {
+      align-self: flex-end;
+      background: linear-gradient(135deg, rgba(112, 0, 255, 0.35), rgba(0, 240, 255, 0.25));
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      padding: 12px 18px;
+      border-radius: 14px 14px 2px 14px;
+      font-weight: 600;
+      color: #ffffff;
+      max-width: 80%;
+      font-size: 0.95rem;
+    }
+
+    .log-narrative {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      padding: 16px 20px;
+      border-radius: 2px 14px 14px 14px;
+      line-height: 1.65;
+      color: #e2e8f0;
+      max-width: 92%;
+      font-size: 0.95rem;
+      position: relative;
+    }
+
+    .log-meta {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      display: flex;
+      gap: 12px;
+      font-family: 'Fira Code', monospace;
+    }
+
+    .log-provider {
+      color: var(--accent-cyan);
+    }
+
+    .suggested-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 10px 16px;
+      border-radius: 20px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .pill-btn:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--accent-cyan);
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 240, 255, 0.2);
+    }
+
+    /* Input Controls */
+    .input-bar {
+      display: flex;
+      gap: 12px;
+      position: relative;
+    }
+
+    .action-input {
+      flex: 1;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px 20px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .action-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.25);
+    }
+
+    .btn {
+      padding: 14px 24px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 700;
+      font-family: inherit;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(112, 0, 255, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 240, 255, 0.5);
+    }
+
+    .btn-danger {
+      background: rgba(255, 0, 85, 0.15);
+      border: 1px solid var(--accent-red);
+      color: var(--accent-red);
+    }
+
+    .btn-danger:hover {
+      background: var(--accent-red);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+    }
+
+    /* Alert Notice for Race Condition */
+    .alert-box {
+      background: rgba(255, 0, 85, 0.12);
+      border: 1px solid var(--accent-red);
+      color: #ff99b3;
+      padding: 14px 18px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      display: none;
+      animation: shake 0.4s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes popIn { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span class="brand-icon">🛸</span>
+      <div>
+        <h1>AI Escape Room Engine</h1>
+        <p style="font-size: 0.75rem; color: var(--text-muted);">High-Concurrency Distributed Lock & State Machine</p>
+      </div>
+    </div>
+    <div class="badge-bar">
+      <div class="badge active">⚡ Redis Lock: Active</div>
+      <div class="badge">🐘 Supabase JSONB</div>
+      <div class="badge">🤖 Groq / Gemini LLM</div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Left Sidebar HUD -->
+    <div class="sidebar">
+      
+      <!-- New Game Card -->
+      <div class="card">
+        <div class="card-title">Senaryo Seçimi</div>
+        <select id="themeSelect" style="width: 100%; background: rgba(0,0,0,0.4); color: #fff; border: 1px solid var(--card-border); padding: 12px; border-radius: 8px; font-family: inherit; margin-bottom: 12px; outline: none;">
+          <option value="cyberpunk_escape">🌆 Siberpunk Kaçış (Cyberpunk Escape)</option>
+          <option value="haunted_mansion">🏰 Lanetli Malikane (Haunted Detective)</option>
+          <option value="scifi_spaceship">🚀 Terk Edilmiş Uzay Üssü (Sci-Fi Base)</option>
+          <option value="medieval_dungeon">🛡️ Ortaçağ Zindanı (Medieval Dungeon)</option>
+        </select>
+        <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="createNewRoom()">
+          ✨ Yeni Oda Başlat
+        </button>
+      </div>
+
+      <!-- Health HUD -->
+      <div class="card">
+        <div class="card-title">Oyuncu Durumu (Health)</div>
+        <div class="health-container">
+          <div class="health-header">
+            <span>Can Değeri</span>
+            <span id="healthValue">100 / 100</span>
+          </div>
+          <div class="health-bar-bg">
+            <div class="health-bar-fill" id="healthFill" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventory HUD -->
+      <div class="card">
+        <div class="card-title">Envanter (Inventory)</div>
+        <div class="inventory-list" id="inventoryList">
+          <span class="empty-inventory">Henüz bir eşya toplanmadı.</span>
+        </div>
+      </div>
+
+      <!-- Discovered Clues Board -->
+      <div class="card">
+        <div class="card-title">İpuçları (Discovered Clues)</div>
+        <div class="clue-list" id="clueList">
+          <span class="empty-inventory">Bulunan ipucu yok.</span>
+        </div>
+      </div>
+
+      <!-- Environment State HUD -->
+      <div class="card">
+        <div class="card-title">Oda State (PostgreSQL JSONB)</div>
+        <div class="env-tree" id="envTree">{ "door": "locked" }</div>
+      </div>
+
+      <!-- Race Condition Tester -->
+      <div class="card" style="border-color: rgba(255, 0, 85, 0.3);">
+        <div class="card-title" style="color: var(--accent-red);">🔥 Concurrency Benchmark</div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+          Aynı anda 5 eşzamanlı istek atarak <b>Redis Distributed Lock (HTTP 429)</b> kilit mekanizmasını canlı test edin.
+        </p>
+        <button class="btn btn-danger" style="width: 100%; justify-content: center;" onclick="testRaceCondition()">
+          ⚡ Spam 5 Concurrency Test
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Main Console -->
+    <div class="console-area">
+      <div class="terminal-window">
+        <div class="terminal-header">
+          <div class="terminal-dots">
+            <div class="dot red"></div>
+            <div class="dot yellow"></div>
+            <div class="dot green"></div>
+          </div>
+          <div style="font-size: 0.8rem; font-family: 'Fira Code', monospace; color: var(--text-muted);" id="roomIdDisplay">
+            Oda ID: Başlatılmadı
+          </div>
+        </div>
+
+        <div class="terminal-logs" id="terminalLogs">
+          <div class="log-entry">
+            <div class="log-narrative">
+              👋 <b>AI Escape Room Engine Final Sürümüne Hoş Geldiniz!</b><br><br>
+              Sol panelden bir tema seçip <i>"Yeni Oda Başlat"</i> butonuna basarak oyunu başlatabilirsiniz.<br>
+              Tüm hamleleriniz **Redis Distributed Lock (NX/PX)** ile korumakta ve **LLM State Machine** tarafından esnek JSONB olarak güncellenmektedir.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert-box" id="alertBox"></div>
+
+      <!-- Quick Action Pills -->
+      <div class="suggested-pills" id="suggestedPills"></div>
+
+      <!-- Input Area -->
+      <div class="input-bar">
+        <input type="text" class="action-input" id="actionInput" placeholder="Aksiyonunuzu yazın (Örn: Odadaki sandalyeyi pencereye fırlat)..." onkeydown="if(event.key==='Enter') sendAction()">
+        <button class="btn btn-primary" onclick="sendAction()" id="sendBtn">
+          Gönder 🚀
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentRoomId = null;
+
+    async function createNewRoom() {
+      const theme = document.getElementById('themeSelect').value;
+      try {
+        const res = await fetch('/api/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ theme })
+        });
+        const room = await res.json();
+        currentRoomId = room.id;
+        document.getElementById('roomIdDisplay').innerText = `Oda ID: ${room.id}`;
+        
+        // Reset UI
+        document.getElementById('terminalLogs').innerHTML = '';
+        updateHUD(room.current_state);
+        
+        playAudioFx('start');
+        appendLog('SYSTEM', `✨ Yeni Kaçış Odası Başlatıldı (${room.theme.toUpperCase()}). Hamlenizi yazın veya aşağıdaki hazır seçeneklerden birine tıklayın!`);
+        renderSuggestedPills(['Etrafı iyice incele', 'Çekmeceleri ara', 'Kapıyı kontrol et']);
+      } catch (err) {
+        showAlert('Oda başlatma hatası: ' + err.message);
+      }
+    }
+
+    async function sendAction(overrideAction = null) {
+      const inputEl = document.getElementById('actionInput');
+      const actionText = overrideAction || inputEl.value.trim();
+      
+      if (!actionText) return;
+      if (!currentRoomId) {
+        alert('Lütfen önce sol panelden "Yeni Oda Başlat" butonuna basın!');
+        return;
+      }
+
+      inputEl.value = '';
+      appendLog('ACTION', actionText);
+      hideAlert();
+
+      try {
+        const res = await fetch(`/api/rooms/${currentRoomId}/action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: actionText })
+        });
+
+        const data = await res.json();
+
+        if (res.status === 429) {
+          // Lock held error
+          showAlert(`⛔ RACECONDITION KİLİTLENDİ (HTTP 429): ${data.message}`);
+          playAudioFx('lock_error');
+          return;
+        }
+
+        if (!res.ok) {
+          showAlert(`Hata: ${data.message || 'Bilinmeyen hata'}`);
+          return;
+        }
+
+        // Success
+        playAudioFx(data.soundEffect || 'action');
+        appendLog('NARRATIVE', data.narrative, data.providerUsed);
+        updateHUD(data.state);
+        renderSuggestedPills(data.suggestedActions || []);
+
+      } catch (err) {
+        showAlert('İstek hatası: ' + err.message);
+      }
+    }
+
+    async function testRaceCondition() {
+      if (!currentRoomId) {
+        alert('Lütfen önce bir oda başlatın!');
+        return;
+      }
+      showAlert('⚡ 5 Eşzamanlı İstek Gönderiliyor (Redis Distributed Lock Testi)...');
+      
+      const requests = Array.from({ length: 5 }).map((_, i) => 
+        fetch(`/api/rooms/${currentRoomId}/action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: `Concurrently Spam Action #${i + 1}` })
+        }).then(r => r.json().then(data => ({ status: r.status, data })))
+      );
+
+      const results = await Promise.all(requests);
+      console.log('Concurrency Benchmark Results:', results);
+
+      let blockedCount = results.filter(r => r.status === 429).length;
+      let successCount = results.filter(r => r.status === 200).length;
+
+      showAlert(`🎯 CONCURRENCY BENCHMARK: ${successCount} İstek İşlendi, ${blockedCount} İstek Redis Atomic Lock (HTTP 429) İle Güvenle Engellendi!`);
+    }
+
+    function updateHUD(state) {
+      if (!state) return;
+
+      // Health
+      const health = state.health ?? 100;
+      document.getElementById('healthValue').innerText = `${health} / 100`;
+      document.getElementById('healthFill').style.width = `${health}%`;
+
+      // Inventory
+      const invList = document.getElementById('inventoryList');
+      invList.innerHTML = '';
+      if (state.inventory && state.inventory.length > 0) {
+        state.inventory.forEach(item => {
+          const chip = document.createElement('div');
+          chip.className = 'inventory-item';
+          chip.innerHTML = `📦 ${item}`;
+          invList.appendChild(chip);
+        });
+      } else {
+        invList.innerHTML = '<span class="empty-inventory">Henüz bir eşya toplanmadı.</span>';
+      }
+
+      // Clues
+      const clueList = document.getElementById('clueList');
+      clueList.innerHTML = '';
+      if (state.discovered_clues && state.discovered_clues.length > 0) {
+        state.discovered_clues.forEach(clue => {
+          const chip = document.createElement('div');
+          chip.className = 'clue-item';
+          chip.innerHTML = `🔍 ${clue}`;
+          clueList.appendChild(chip);
+        });
+      } else {
+        clueList.innerHTML = '<span class="empty-inventory">Bulunan ipucu yok.</span>';
+      }
+
+      // Env state JSON
+      document.getElementById('envTree').innerText = JSON.stringify(state.environment || {}, null, 2);
+    }
+
+    function appendLog(type, text, provider = null) {
+      const logs = document.getElementById('terminalLogs');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+
+      if (type === 'ACTION') {
+        entry.innerHTML = `<div class="log-action">👉 ${escapeHtml(text)}</div>`;
+      } else if (type === 'NARRATIVE') {
+        entry.innerHTML = `
+          <div class="log-narrative">
+            ${escapeHtml(text)}
+            <div class="log-meta">
+              <span>⏱️ ${new Date().toLocaleTimeString()}</span>
+              ${provider ? `<span class="log-provider">🤖 ${provider}</span>` : ''}
+            </div>
+          </div>
+        `;
+      } else {
+        entry.innerHTML = `<div class="log-narrative" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">${text}</div>`;
+      }
+
+      logs.appendChild(entry);
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    function renderSuggestedPills(actions) {
+      const container = document.getElementById('suggestedPills');
+      container.innerHTML = '';
+      actions.forEach(act => {
+        const btn = document.createElement('button');
+        btn.className = 'pill-btn';
+        btn.innerText = `💡 ${act}`;
+        btn.onclick = () => sendAction(act);
+        container.appendChild(btn);
+      });
+    }
+
+    function showAlert(msg) {
+      const alertBox = document.getElementById('alertBox');
+      alertBox.innerText = msg;
+      alertBox.style.display = 'block';
+    }
+
+    function hideAlert() {
+      document.getElementById('alertBox').style.display = 'none';
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function playAudioFx(type) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === 'lock_error') {
+          osc.frequency.setValueAtTime(150, ctx.currentTime);
+          osc.type = 'sawtooth';
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.25);
+        } else if (type === 'start') {
+          osc.frequency.setValueAtTime(440, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.2);
+          osc.type = 'sine';
+          gain.gain.setValueAtTime(0.1, ctx.currentTime);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.25);
+        } else {
+          osc.frequency.setValueAtTime(300, ctx.currentTime);
+          osc.type = 'triangle';
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.1);
+        }
+      } catch(e){}
+    }
+  </script>
+</body>
+</html>

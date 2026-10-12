@@ -1,0 +1,18 @@
+name: Keep-Alive Heartbeat (Render + Supabase)
+
+on:
+  schedule:
+    # Runs every 12 minutes to keep Render (15 min sleep) and Supabase (7 day pause) active 24/7
+    - cron: '*/12 * * * *'
+  workflow_dispatch: # Allows manual test trigger from GitHub tab
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping Render & Touch Supabase
+        run: |
+          echo "Sending keep-alive ping to AEGIS OS engine..."
+          RESPONSE=$(curl -s https://aiescaperoom.onrender.com/api/health)
+          echo "Server Response: $RESPONSE"

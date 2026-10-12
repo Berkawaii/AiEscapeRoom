@@ -6,6 +6,7 @@ import { LocksModule } from './core/locks/locks.module';
 import { AiModule } from './core/ai/ai.module';
 import { DatabaseModule } from './core/database/database.module';
 import { GameModule } from './modules/game/game.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -15,12 +16,13 @@ import { GameModule } from './modules/game/game.module';
     }),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public'),
-      exclude: ['/api/(.*)'],
+      exclude: ['/api/(.*)', '/health'],
     }),
     LocksModule,
     AiModule,
     DatabaseModule,
     GameModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

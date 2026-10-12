@@ -33,9 +33,14 @@ export class RedisLockService implements OnModuleDestroy {
 
     if (redisUrl && redisUrl.trim().length > 0) {
       try {
-        this.redisClient = new Redis(redisUrl, { maxRetriesPerRequest: 1, lazyConnect: true });
+        this.redisClient = new Redis(redisUrl, {
+          maxRetriesPerRequest: 1,
+          lazyConnect: true,
+          retryStrategy: () => null,
+          reconnectOnError: () => false,
+        });
         this.redisClient.on('error', (err) => {
-          this.logger.warn(`Redis connection error: ${err.message}. Lock manager using Postgres/Atomic Process Lock.`);
+          this.logger.warn(`Redis connection error: ${err.message}. Lock manager using Atomic Process Lock.`);
         });
 
         this.redisClient.connect().then(() => {
@@ -43,7 +48,7 @@ export class RedisLockService implements OnModuleDestroy {
         }).catch(() => {
           this.logger.warn('Redis server unavailable. Lock manager using atomic process lock.');
         });
-      } catch (e) {
+      } catch (e: any) {
         this.logger.warn(`Redis init skipped: ${e.message}`);
       }
     } else {

@@ -2180,13 +2180,30 @@
 
     async function createNewRoom() {
       const theme = document.getElementById('themeSelect').value;
+      const btn = document.getElementById('btnNewRoom');
+      const btnText = document.getElementById('btnNewRoomText');
+      const originalText = btnText ? btnText.innerText : 'Start New Mission';
+
+      if (btn) btn.disabled = true;
+      if (btnText) btnText.innerText = currentLang === 'en' ? 'CONNECTING...' : 'BAĞLANTI KURULUYOR...';
+
       try {
         const res = await fetch('/api/rooms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ theme, lang: currentLang })
         });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `Server error (${res.status})`);
+        }
+
         const room = await res.json();
+        if (!room || !room.id) {
+          throw new Error(currentLang === 'en' ? 'Invalid room data received from server.' : 'Sunucudan geçersiz oda verisi alındı.');
+        }
+
         currentRoomId = room.id;
         isMissionFailed = false;
         isMissionCompleted = false;
@@ -2264,10 +2281,13 @@
 
       } catch (err) {
         showPhoneNotification(
-          currentLang === 'en' ? 'SYSTEM ERROR' : 'SİSTEM HATASI',
-          err.message,
+          currentLang === 'en' ? 'CONNECTION ERROR' : 'BAĞLANTI HATASI',
+          err.message || 'Mission initialization failed.',
           'error'
         );
+      } finally {
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.innerText = originalText;
       }
     }
 

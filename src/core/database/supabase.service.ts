@@ -31,14 +31,19 @@ export interface RoomRecord {
 export class SupabaseService {
   private readonly logger = new Logger(SupabaseService.name);
   private supabaseClient: SupabaseClient | null = null;
+  private readonly memoryRooms = new Map<string, RoomRecord>();
 
   constructor(private readonly configService: ConfigService) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
     const supabaseKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
 
     if (supabaseUrl && supabaseKey && supabaseUrl !== 'https://your-project.supabase.co') {
-      this.supabaseClient = createClient(supabaseUrl, supabaseKey);
-      this.logger.log('🚀 Supabase Production PostgreSQL Client initialized.');
+      try {
+        this.supabaseClient = createClient(supabaseUrl, supabaseKey);
+        this.logger.log('🚀 Supabase Production PostgreSQL Client initialized.');
+      } catch (e: any) {
+        this.logger.warn(`Supabase client initialization warning: ${e.message}`);
+      }
     } else {
       this.logger.warn('Supabase credentials not configured in .env yet.');
     }
@@ -48,26 +53,38 @@ export class SupabaseService {
     return !!this.supabaseClient;
   }
 
-  private ensureClient(): SupabaseClient {
-    if (!this.supabaseClient) {
-      throw new ServiceUnavailableException(
-        'Supabase veritabanı bağlantısı yapılandırılmadı! Lütfen .env dosyanıza SUPABASE_URL ve SUPABASE_SERVICE_ROLE_KEY ekleyin.',
-      );
+  async ping(): Promise<{ connected: boolean; latencyMs: number; mode: 'supabase' | 'in_memory' }> {
+    const start = Date.now();
+    if (this.supabaseClient) {
+      try {
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Ping timeout')), 2000),
+        );
+        const queryPromise = this.supabaseClient.from('rooms').select('id').limit(1);
+
+        const { error }: any = await Promise.race([queryPromise, timeoutPromise]);
+        if (!error) {
+          return { connected: true, latencyMs: Date.now() - start, mode: 'supabase' };
+        }
+      } catch {
+        // Supabase unreachable or timed out
+      }
     }
-    return this.supabaseClient;
+    return { connected: false, latencyMs: Date.now() - start, mode: 'in_memory' };
   }
 
   async acquireAdvisoryLock(lockKey: string): Promise<string | null> {
-    const client = this.ensureClient();
-    try {
-      const { data, error } = await client.rpc('acquire_room_lock', { lock_key: lockKey });
-      if (error) {
-        return this.acquireRowLockFallback(lockKey);
+    if (this.supabaseClient) {
+      try {
+        const { data, error } = await this.supabaseClient.rpc('acquire_room_lock', { lock_key: lockKey });
+        if (!error && data === true) {
+          return uuidv4();
+        }
+      } catch (e) {
+        // Fallback to row lock token
       }
-      return data === true ? uuidv4() : null;
-    } catch (e) {
-      return this.acquireRowLockFallback(lockKey);
     }
+    return this.acquireRowLockFallback(lockKey);
   }
 
   private async acquireRowLockFallback(lockKey: string): Promise<string | null> {
@@ -75,7 +92,6 @@ export class SupabaseService {
   }
 
   async createRoom(theme: string, title?: string, userId?: string): Promise<RoomRecord> {
-    const client = this.ensureClient();
     const config = SCENARIO_CONFIGS[theme] || SCENARIO_CONFIGS['cyberpunk_escape'];
 
     const newRoom: RoomRecord = {
@@ -90,35 +106,55 @@ export class SupabaseService {
       updated_at: new Date().toISOString(),
     };
 
-    const { data, error } = await client
-      .from('rooms')
-      .insert([newRoom])
-      .select()
-      .single();
+    // Always store in resilient in-memory store
+    this.memoryRooms.set(newRoom.id, newRoom);
 
-    if (error) {
-      this.logger.error(`Supabase createRoom error: ${error.message}`);
-      throw new InternalServerErrorException(`Veritabanına oda oluşturulamadı: ${error.message}`);
+    if (this.supabaseClient) {
+      try {
+        const { data, error } = await this.supabaseClient
+          .from('rooms')
+          .insert([newRoom])
+          .select()
+          .single();
+
+        if (error) {
+          this.logger.warn(`Supabase createRoom warning (${error.message}). Using resilient memory store.`);
+        } else if (data) {
+          this.memoryRooms.set(data.id, data as RoomRecord);
+          return data as RoomRecord;
+        }
+      } catch (err: any) {
+        this.logger.warn(`Supabase createRoom connection failed (${err.message}). Using resilient memory store.`);
+      }
     }
 
-    return data as RoomRecord;
+    return newRoom;
   }
 
   async getRoomById(roomId: string): Promise<RoomRecord | null> {
-    const client = this.ensureClient();
+    if (this.supabaseClient) {
+      try {
+        const { data, error } = await this.supabaseClient
+          .from('rooms')
+          .select('*')
+          .eq('id', roomId)
+          .single();
 
-    const { data, error } = await client
-      .from('rooms')
-      .select('*')
-      .eq('id', roomId)
-      .single();
-
-    if (error) {
-      this.logger.warn(`Supabase getRoomById error: ${error.message}`);
-      return null;
+        if (!error && data) {
+          this.memoryRooms.set(roomId, data as RoomRecord);
+          return data as RoomRecord;
+        }
+      } catch (err: any) {
+        this.logger.warn(`Supabase getRoomById failed (${err.message}). Checking memory store.`);
+      }
     }
 
-    return data as RoomRecord;
+    const memoryRoom = this.memoryRooms.get(roomId);
+    if (memoryRoom) {
+      return memoryRoom;
+    }
+
+    return null;
   }
 
   async updateRoomState(
@@ -127,7 +163,6 @@ export class SupabaseService {
     newHistoryItem: { action: string; narrative: string; timestamp: string; providerUsed?: string },
     status: 'active' | 'completed' | 'failed',
   ): Promise<RoomRecord> {
-    const client = this.ensureClient();
     const room = await this.getRoomById(roomId);
     if (!room) {
       throw new InternalServerErrorException(`Oda bulunamadı (ID: ${roomId}).`);
@@ -136,23 +171,42 @@ export class SupabaseService {
     const updatedHistory = [...(room.history || []), newHistoryItem];
     const updatedAt = new Date().toISOString();
 
-    const { data, error } = await client
-      .from('rooms')
-      .update({
-        current_state: newState,
-        history: updatedHistory,
-        status,
-        updated_at: updatedAt,
-      })
-      .eq('id', roomId)
-      .select()
-      .single();
+    const updatedRoom: RoomRecord = {
+      ...room,
+      current_state: newState,
+      history: updatedHistory,
+      status,
+      updated_at: updatedAt,
+    };
 
-    if (error) {
-      this.logger.error(`Supabase updateRoomState error: ${error.message}`);
-      throw new InternalServerErrorException(`Veritabanı durumu güncellenemedi: ${error.message}`);
+    // Update resilient memory store
+    this.memoryRooms.set(roomId, updatedRoom);
+
+    if (this.supabaseClient) {
+      try {
+        const { data, error } = await this.supabaseClient
+          .from('rooms')
+          .update({
+            current_state: newState,
+            history: updatedHistory,
+            status,
+            updated_at: updatedAt,
+          })
+          .eq('id', roomId)
+          .select()
+          .single();
+
+        if (error) {
+          this.logger.warn(`Supabase updateRoomState warning (${error.message}). Preserved in memory store.`);
+        } else if (data) {
+          this.memoryRooms.set(roomId, data as RoomRecord);
+          return data as RoomRecord;
+        }
+      } catch (err: any) {
+        this.logger.warn(`Supabase updateRoomState failed (${err.message}). Preserved in memory store.`);
+      }
     }
 
-    return data as RoomRecord;
+    return updatedRoom;
   }
 }
